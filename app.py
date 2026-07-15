@@ -14,7 +14,7 @@ def save_data(df):
     # 모든 가능한 항목을 합친 컬럼 리스트
     columns = ["일시", "아이디", "학사", "유형", "대상", "침대", "바닥/벽", "가구류", "가전(냉장고/공유기)", 
                "전등/콘센트", "위생시설", "샤워시설", "창문", "청소도구", "복도/계단", "화장실(공용)", 
-               "샤워실(공용)", "정수기", "공용 주방", "세탁실", "소방시설", "현관/출입문"]
+               "샤워실(공용)", "정수기", "전자레인지", "세탁실", "현관/출입문"]
     if not df.empty:
         df = df.reindex(columns=columns)
         df = df.sort_values(by=["학사", "유형", "대상"])
@@ -60,13 +60,15 @@ elif st.session_state.page == 'input':
     
     st.info(f"학사: {dorm} | 유형: {check_type}")
 
-    target = st.text_input("호실/층수", value=old_data["대상"] if is_edit else "")
+    # 점검 대상 입력창 문구 변경
+    target_label = "점검 층수" if check_type == "층별 공용시설 점검" else "호실/층수"
+    target = st.text_input(target_label, value=old_data["대상"] if is_edit else "")
     
-    # 유형별 항목 설정
+    # 유형별 항목 설정 (소방시설 제외, 공용 주방 -> 전자레인지)
     if check_type == "개인 호실 점검":
         items = ["침대", "바닥/벽", "가구류", "가전(냉장고/공유기)", "전등/콘센트", "위생시설", "샤워시설", "창문", "청소도구"]
     else:
-        items = ["복도/계단", "화장실(공용)", "샤워실(공용)", "정수기", "공용 주방", "세탁실", "소방시설", "현관/출입문"]
+        items = ["복도/계단", "화장실(공용)", "샤워실(공용)", "정수기", "전자레인지", "세탁실", "현관/출입문"]
     
     item_details = {}
     for item in items:
