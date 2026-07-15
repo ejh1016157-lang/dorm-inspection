@@ -3,22 +3,18 @@ import pandas as pd
 import os
 from datetime import datetime
 
-FILE_NAME = "inspection_data.csv"
+# 파일 이름 분리
+def get_file_name(check_type):
+    return "room_inspection.csv" if check_type == "개인 호실 점검" else "public_inspection.csv"
 
 # 페이지 상태 및 초기화
 if 'page' not in st.session_state: st.session_state.page = 'login'
 if 'logged_in' not in st.session_state: st.session_state.logged_in = False
 
-# 데이터 저장 및 정렬 함수
-def save_data(df):
-    # 모든 가능한 항목을 합친 컬럼 리스트
-    columns = ["일시", "아이디", "학사", "유형", "대상", "침대", "바닥/벽", "가구류", "가전(냉장고/공유기)", 
-               "전등/콘센트", "위생시설", "샤워시설", "창문", "청소도구", "복도/계단", "화장실(공용)", 
-               "샤워실(공용)", "정수기", "전자레인지", "세탁실", "현관/출입문"]
-    if not df.empty:
-        df = df.reindex(columns=columns)
-        df = df.sort_values(by=["학사", "유형", "대상"])
-    df.to_csv(FILE_NAME, index=False, encoding='utf-8-sig')
+# 데이터 저장 함수
+def save_data(df, check_type):
+    file_name = get_file_name(check_type)
+    df.to_csv(file_name, index=False, encoding='utf-8-sig')
 
 # --- 로그인 ---
 if st.session_state.page == 'login':
@@ -52,19 +48,18 @@ elif st.session_state.page == 'input':
     is_edit = st.session_state.get('edit_idx') is not None
     st.title("점검 정보 입력")
     
-    df = pd.read_csv(FILE_NAME, encoding='utf-8-sig') if os.path.exists(FILE_NAME) else pd.DataFrame()
+    check_type = st.session_state.check_type
+    file_name = get_file_name(check_type)
+    df = pd.read_csv(file_name, encoding='utf-8-sig') if os.path.exists(file_name) else pd.DataFrame()
+    
     old_data = df.iloc[st.session_state.edit_idx] if is_edit else None
-    
     dorm = old_data["학사"] if is_edit else st.session_state.dorm_name
-    check_type = old_data["유형"] if is_edit else st.session_state.check_type
-    
     st.info(f"학사: {dorm} | 유형: {check_type}")
 
-    # 점검 대상 입력창 문구 변경
     target_label = "점검 층수" if check_type == "층별 공용시설 점검" else "호실/층수"
     target = st.text_input(target_label, value=old_data["대상"] if is_edit else "")
     
-    # 유형별 항목 설정 (소방시설 제외, 공용 주방 -> 전자레인지)
+    # 유형별 항목 설정
     if check_type == "개인 호실 점검":
         items = ["침대", "바닥/벽", "가구류", "가전(냉장고/공유기)", "전등/콘센트", "위생시설", "샤워시설", "창문", "청소도구"]
     else:
@@ -84,7 +79,7 @@ elif st.session_state.page == 'input':
                    "학사": dorm, "유형": check_type, "대상": target, **item_details}
         if is_edit: df = df.drop(st.session_state.edit_idx)
         df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
-        save_data(df)
+        save_data(df, check_type)
         st.success("저장 완료!")
         st.session_state.edit_idx = None
         st.session_state.page = 'main_menu'; st.rerun()
@@ -92,30 +87,4 @@ elif st.session_state.page == 'input':
     if st.button("취소/메인으로"): st.session_state.page = 'main_menu'; st.rerun()
 
 # --- 이전 내역 페이지 ---
-elif st.session_state.page == 'history':
-    st.title("이전 점검 내역")
-    if os.path.exists(FILE_NAME):
-        df = pd.read_csv(FILE_NAME, encoding='utf-8-sig')
-        st.dataframe(df, use_container_width=True)
-        
-        idx = st.number_input("대상 행 번호 (위 표의 인덱스)", min_value=0, max_value=len(df)-1, step=1)
-        
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.button("✏️ 선택 내역 수정하기"):
-                st.session_state.edit_idx = idx
-                st.session_state.page = 'input'; st.rerun()
-        with col2:
-            if st.button("🗑️ 선택 내역 삭제하기"):
-                df = df.drop(idx).reset_index(drop=True)
-                save_data(df)
-                st.success(f"{idx}번 행이 삭제되었습니다!")
-                st.rerun()
-        
-        st.divider()
-        csv = df.to_csv(index=False, encoding='utf-8-sig').encode('utf-8-sig')
-        st.download_button("📥 전체 내역 엑셀로 다운로드", csv, 'inspection_data.csv', 'text/csv')
-    else: 
-        st.write("저장된 내역이 없습니다.")
-    
-    if st.button("메인으로"): st.session_state.page = 'main_menu'; st.rerun()
+elif st.
