@@ -11,8 +11,12 @@ def get_file_name(check_type):
 if 'page' not in st.session_state: st.session_state.page = 'login'
 if 'logged_in' not in st.session_state: st.session_state.logged_in = False
 
-# 데이터 저장 함수
+# 데이터 저장 함수 (상태 포함)
 def save_data(df, check_type):
+    # 만약 '상태' 열이 없으면 기본값 '미완료'로 채우기
+    if "상태" not in df.columns:
+        df["상태"] = "미완료"
+    
     file_name = get_file_name(check_type)
     df.to_csv(file_name, index=False, encoding='utf-8-sig')
 
@@ -75,7 +79,7 @@ elif st.session_state.page == 'input':
 
     if st.button("제출"):
         new_row = {"일시": datetime.now().strftime("%Y-%m-%d %H:%M"), "아이디": str(st.session_state.user_id),
-                   "학사": dorm, "유형": check_type, "대상": target, **item_details}
+                   "학사": dorm, "유형": check_type, "대상": target, "상태": "미완료", **item_details}
         if is_edit: df = df.drop(st.session_state.edit_idx)
         df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
         save_data(df, check_type)
@@ -93,21 +97,28 @@ elif st.session_state.page == 'history':
     
     if os.path.exists(file_name):
         df = pd.read_csv(file_name, encoding='utf-8-sig')
+        # 상태 열이 없으면 추가
+        if "상태" not in df.columns: df["상태"] = "미완료"
+        
         st.dataframe(df, use_container_width=True)
         
-        idx = st.number_input("대상 행 번호 (위 표의 인덱스)", min_value=0, max_value=len(df)-1, step=1)
+        idx = st.number_input("대상 행 번호", min_value=0, max_value=len(df)-1, step=1)
         
-        col1, col2 = st.columns(2)
+        col1, col2, col3 = st.columns(3)
         with col1:
-            if st.button("✏️ 선택 내역 수정하기"):
+            if st.button("✏️ 수정"):
                 st.session_state.edit_idx = idx
                 st.session_state.check_type = selected_type
                 st.session_state.page = 'input'; st.rerun()
         with col2:
-            if st.button("🗑️ 선택 내역 삭제하기"):
+            if st.button("✅ 완료 처리"):
+                df.at[idx, "상태"] = "점검 완료"
+                save_data(df, selected_type)
+                st.rerun()
+        with col3:
+            if st.button("🗑️ 삭제"):
                 df = df.drop(idx).reset_index(drop=True)
                 save_data(df, selected_type)
-                st.success(f"{idx}번 행이 삭제되었습니다!")
                 st.rerun()
         
         st.divider()
