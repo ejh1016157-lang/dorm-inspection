@@ -59,7 +59,6 @@ elif st.session_state.page == 'input':
     target_label = "점검 층수" if check_type == "층별 공용시설 점검" else "호실/층수"
     target = st.text_input(target_label, value=old_data["대상"] if is_edit else "")
     
-    # 유형별 항목 설정
     if check_type == "개인 호실 점검":
         items = ["침대", "바닥/벽", "가구류", "가전(냉장고/공유기)", "전등/콘센트", "위생시설", "샤워시설", "창문", "청소도구"]
     else:
@@ -87,4 +86,34 @@ elif st.session_state.page == 'input':
     if st.button("취소/메인으로"): st.session_state.page = 'main_menu'; st.rerun()
 
 # --- 이전 내역 페이지 ---
-elif st.
+elif st.session_state.page == 'history':
+    st.title("이전 점검 내역")
+    selected_type = st.radio("보기 원하는 내역 선택", ["개인 호실 점검", "층별 공용시설 점검"])
+    file_name = get_file_name(selected_type)
+    
+    if os.path.exists(file_name):
+        df = pd.read_csv(file_name, encoding='utf-8-sig')
+        st.dataframe(df, use_container_width=True)
+        
+        idx = st.number_input("대상 행 번호 (위 표의 인덱스)", min_value=0, max_value=len(df)-1, step=1)
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("✏️ 선택 내역 수정하기"):
+                st.session_state.edit_idx = idx
+                st.session_state.check_type = selected_type
+                st.session_state.page = 'input'; st.rerun()
+        with col2:
+            if st.button("🗑️ 선택 내역 삭제하기"):
+                df = df.drop(idx).reset_index(drop=True)
+                save_data(df, selected_type)
+                st.success(f"{idx}번 행이 삭제되었습니다!")
+                st.rerun()
+        
+        st.divider()
+        csv = df.to_csv(index=False, encoding='utf-8-sig').encode('utf-8-sig')
+        st.download_button(f"📥 {selected_type} 엑셀로 다운로드", csv, file_name, 'text/csv')
+    else: 
+        st.write("저장된 내역이 없습니다.")
+    
+    if st.button("메인으로"): st.session_state.page = 'main_menu'; st.rerun()
