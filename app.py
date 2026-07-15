@@ -11,9 +11,13 @@ if 'logged_in' not in st.session_state: st.session_state.logged_in = False
 
 # 데이터 저장 및 정렬 함수
 def save_data(df):
-    columns = ["일시", "아이디", "학사", "유형", "대상", "침대", "바닥/벽", "가구류", "가전(냉장고/공유기)", "전등/콘센트", "위생시설", "샤워시설", "창문", "청소도구"]
+    # 모든 가능한 항목을 합친 컬럼 리스트
+    columns = ["일시", "아이디", "학사", "유형", "대상", "침대", "바닥/벽", "가구류", "가전(냉장고/공유기)", 
+               "전등/콘센트", "위생시설", "샤워시설", "창문", "청소도구", "복도/계단", "화장실(공용)", 
+               "샤워실(공용)", "정수기", "공용 주방", "세탁실", "소방시설", "현관/출입문"]
     if not df.empty:
-        df = df.sort_values(by=["학사", "대상"]).reindex(columns=columns)
+        df = df.reindex(columns=columns)
+        df = df.sort_values(by=["학사", "유형", "대상"])
     df.to_csv(FILE_NAME, index=False, encoding='utf-8-sig')
 
 # --- 로그인 ---
@@ -36,9 +40,10 @@ elif st.session_state.page == 'main_menu':
     if st.button("신규 점검하기"): st.session_state.page = 'dormitory'; st.session_state.edit_idx = None; st.rerun()
     if st.button("이전 점검 내역 확인/수정"): st.session_state.page = 'history'; st.rerun()
 
-# --- 학사 선택 ---
+# --- 학사 및 유형 선택 ---
 elif st.session_state.page == 'dormitory':
     st.session_state.dorm_name = st.selectbox("학사 선택", ["구연학사", "현암학사", "봉소학사", "반야학사", "선행화학사"])
+    st.session_state.check_type = st.radio("점검 유형", ["개인 호실 점검", "층별 공용시설 점검"])
     if st.button("다음"): st.session_state.page = 'input'; st.rerun()
     if st.button("메인으로"): st.session_state.page = 'main_menu'; st.rerun()
 
@@ -49,11 +54,19 @@ elif st.session_state.page == 'input':
     
     df = pd.read_csv(FILE_NAME, encoding='utf-8-sig') if os.path.exists(FILE_NAME) else pd.DataFrame()
     old_data = df.iloc[st.session_state.edit_idx] if is_edit else None
+    
     dorm = old_data["학사"] if is_edit else st.session_state.dorm_name
-    st.info(f"현재 학사: {dorm}")
+    check_type = old_data["유형"] if is_edit else st.session_state.check_type
+    
+    st.info(f"학사: {dorm} | 유형: {check_type}")
 
     target = st.text_input("호실/층수", value=old_data["대상"] if is_edit else "")
-    items = ["침대", "바닥/벽", "가구류", "가전(냉장고/공유기)", "전등/콘센트", "위생시설", "샤워시설", "창문", "청소도구"]
+    
+    # 유형별 항목 설정
+    if check_type == "개인 호실 점검":
+        items = ["침대", "바닥/벽", "가구류", "가전(냉장고/공유기)", "전등/콘센트", "위생시설", "샤워시설", "창문", "청소도구"]
+    else:
+        items = ["복도/계단", "화장실(공용)", "샤워실(공용)", "정수기", "공용 주방", "세탁실", "소방시설", "현관/출입문"]
     
     item_details = {}
     for item in items:
@@ -66,7 +79,7 @@ elif st.session_state.page == 'input':
 
     if st.button("제출"):
         new_row = {"일시": datetime.now().strftime("%Y-%m-%d %H:%M"), "아이디": str(st.session_state.user_id),
-                   "학사": dorm, "유형": "호실", "대상": target, **item_details}
+                   "학사": dorm, "유형": check_type, "대상": target, **item_details}
         if is_edit: df = df.drop(st.session_state.edit_idx)
         df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
         save_data(df)
